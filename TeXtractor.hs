@@ -1,6 +1,7 @@
 module TeXtractor where
 
 import           System.Directory               ( doesFileExist )
+import           Data.List                      ( isSuffixOf )
 
 data LineType = Unimportant | Text String | Input FilePath
 
@@ -48,23 +49,32 @@ parseLine :: String -> LineType
 parseLine [] = Unimportant
 parseLine l  = noLeadSpace $ dropWhile (== ' ') l
  where
-  noLeadSpace s
-    |
+  noLeadSpace s |
     -- Commented line
-      head s == '%' = Unimportant
-    |
+                  head s == '%'      = Unimportant
+                |
     -- Input command
-      take 7 s == "\\input{" && drop (length s - 1) s == "}" = Input
-    $ drop 7
-    $ take (length s - 1) s
-    |
+                  isInputOrInclude s = Input $ getFileName s
+                |
     -- Starts with backslash
-      head s == '\\' = Unimportant
-    |
+                  head s == '\\'     = Unimportant
+                |
     -- Starts with $
-      head s == '$' = Unimportant
-    |
+                  head s == '$'      = Unimportant
+                |
     -- Else, the line is text
-      otherwise = Text s
+                  otherwise          = Text s
 
+isInputOrInclude :: String -> Bool
+isInputOrInclude s | take 7 s == "\\input{" && lastChar s == "}" = True
+                   | take 9 s == "\\include{" && lastChar s == "}" = True
+                   | otherwise = False
+  where lastChar s' = drop (length s' - 1) s'
+
+getFileName :: String -> FilePath
+getFileName s | ".tex" `isSuffixOf` lastCharRemoved = lastCharRemoved
+              | otherwise                           = lastCharRemoved ++ ".tex"
+ where
+  lastCharRemoved  = take (length firstPartRemoved - 1) firstPartRemoved
+  firstPartRemoved = tail $ dropWhile (/= '{') s
 
